@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, errorMessage, statusLabel } from "./api";
+import { api, errorMessage } from "./api";
 import type { ImageRecord } from "./api";
 
 export function Gallery({
@@ -163,12 +163,18 @@ export function Gallery({
                   alt={image.filename}
                   loading="lazy"
                 />
-                <span className={`status-badge ${image.status}`}>
+                <span
+                  className={`status-badge ${image.status === "queued" ? "processing" : image.status}`}
+                >
                   {(image.status === "processing" ||
                     image.status === "queued") && (
                     <span className="status-dot" />
                   )}{" "}
-                  {statusLabel(image.status)}
+                  {image.status === "ready"
+                    ? `${image.people.length} ${image.people.length === 1 ? "person" : "people"} detected`
+                    : image.status === "failed"
+                      ? "Failed"
+                      : "Processing"}
                 </span>
                 <span className="card-open" aria-hidden="true">
                   ↗
@@ -183,18 +189,6 @@ export function Gallery({
                       day: "numeric",
                     })}
                   </span>
-                  {image.status === "ready" ? (
-                    <span
-                      className={`detection-badge ${image.people.length ? "has-people" : "no-people"}`}
-                    >
-                      {image.people.length}{" "}
-                      {image.people.length === 1 ? "person" : "people"} detected
-                    </span>
-                  ) : (
-                    <span>
-                      {image.width} × {image.height}
-                    </span>
-                  )}
                 </p>
               </div>
             </a>
