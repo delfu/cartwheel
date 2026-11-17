@@ -1,0 +1,118 @@
+{
+  "created_at": "2026-11-17T03:39:31.454868+00:00",
+  "device": "cpu",
+  "unit_tests_passed": 14,
+  "packages": {
+    "ultralytics": "8.4.215",
+    "torch": "2.15.0",
+    "pillow": "12.3.0",
+    "numpy": "2.5.5"
+  },
+  "model_sha256": {
+    "yolov8s-seg.pt": "0bac0770b55e5eb5b76a61bc535673288dcec36c2bc0cd25ee0d584c632f3413",
+    "yolov8n-seg.pt": "a7cd8f929e1903d78a12a48efecab430209f18dc46cb96c3599a5980c63c423c"
+  },
+  "timing_note": "Single CLI inference calls, including predictor initialization; not a controlled throughput benchmark.",
+  "runs": [
+    {
+      "directory": "output/Boxers_3Characters-frame-1",
+      "source": "samples/Boxers_3Characters-frame-1.png",
+      "model": "yolov8n-seg.pt",
+      "people": 5,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.478,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/Boxers_3Characters-frame-2",
+      "source": "samples/Boxers_3Characters-frame-2.png",
+      "model": "yolov8n-seg.pt",
+      "people": 10,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.452,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/boxers-small",
+      "source": "samples/Boxers_3Characters-frame-1.png",
+      "model": "yolov8s-seg.pt",
+      "people": 14,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.471,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/bus",
+      "source": "samples/bus.jpg",
+      "model": "yolov8n-seg.pt",
+      "people": 4,
+      "width": 810,
+      "height": 1080,
+      "inference_seconds": 5.646,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/man-and-child-25fps-frame-1",
+      "source": "samples/man-and-child-25fps-frame-1.png",
+      "model": "yolov8n-seg.pt",
+      "people": 2,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.465,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/man-and-child-25fps-frame-2",
+      "source": "samples/man-and-child-25fps-frame-2.png",
+      "model": "yolov8n-seg.pt",
+      "people": 2,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.436,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/man-child-small",
+      "source": "samples/man-and-child-25fps-frame-1.png",
+      "model": "yolov8s-seg.pt",
+      "people": 2,
+      "width": 1920,
+      "height": 1080,
+      "inference_seconds": 0.466,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/no-people",
+      "source": "samples/no-people.png",
+      "model": "yolov8n-seg.pt",
+      "people": 0,
+      "width": 640,
+      "height": 480,
+      "inference_seconds": 0.463,
+      "output_checks": "passed"
+    },
+    {
+      "directory": "output/zidane",
+      "source": "samples/zidane.jpg",
+      "model": "yolov8n-seg.pt",
+      "people": 2,
+      "width": 1280,
+      "height": 720,
+      "inference_seconds": 0.477,
+      "output_checks": "passed"
+    }
+  ],
+  "visual_findings": [
+    "Nano detects both adult and child in both extracted frames.",
+    "Nano detects both boxers and the referee; misses many distant spectators.",
+    "Small detects more spectators but includes a duplicate referee detection in the first boxing frame.",
+    "Masks have hard boundaries and imperfect motion-blurred edges; no matting or temporal tracking."
+  ],
+  "cli_checks": [
+    "Existing output directory rejected without overwrite",
+    "Missing input rejected without output creation"
+  ]
+}

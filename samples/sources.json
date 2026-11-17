@@ -1,0 +1,55 @@
+[
+  {
+    "image": "bus.jpg",
+    "source": "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/assets/bus.jpg",
+    "sha256": "c02019c4979c191eb739ddd944445ef408dad5679acab6fd520ef9d434bfbc63",
+    "width": 810,
+    "height": 1080
+  },
+  {
+    "image": "zidane.jpg",
+    "source": "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/assets/zidane.jpg",
+    "sha256": "16d73869e3267a7d4ed00de8e860833bd1657c1b252e94c0c348277adc7b6edb",
+    "width": 1280,
+    "height": 720
+  },
+  {
+    "image": "no-people.png",
+    "source": "Generated solid-color negative control",
+    "sha256": "1b2d263fd5c1c1576d3ddcafc53c09fb211f714dabf519ccf74143dfa3d610f3",
+    "width": 640,
+    "height": 480
+  },
+  {
+    "image": "Boxers_3Characters-frame-1.png",
+    "source": "Boxers_3Characters.mp4",
+    "timestamp_seconds": 1.883,
+    "sha256": "59f610f2167271b7c0ea7262660dd4ab3054fd605a5de0401e641e02d16e5cab",
+    "width": 1920,
+    "height": 1080
+  },
+  {
+    "image": "Boxers_3Characters-frame-2.png",
+    "source": "Boxers_3Characters.mp4",
+    "timestamp_seconds": 4.518,
+    "sha256": "4dfe1ab98281996e7eeee46c3a67bfad00cf016f642e86bc15c16afcaab87857",
+    "width": 1920,
+    "height": 1080
+  },
+  {
+    "image": "man-and-child-25fps-frame-1.png",
+    "source": "man-and-child-25fps.mp4",
+    "timestamp_seconds": 2.032,
+    "sha256": "907cf3134a32cad8fde6ba8b97d44a5a59172d322599b2426b2b1f3d92752405",
+    "width": 1920,
+    "height": 1080
+  },
+  {
+    "image": "man-and-child-25fps-frame-2.png",
+    "source": "man-and-child-25fps.mp4",
+    "timestamp_seconds": 4.876,
+    "sha256": "c7cd57a01f504adf66e462d7ff0ae6c038d094d4e0ef0adad4179c01529377ce",
+    "width": 1920,
+    "height": 1080
+  }
+]
