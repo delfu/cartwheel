@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, errorMessage, statusLabel } from "./api";
 import type { ImageRecord } from "./api";
+import { useImageNavigation } from "./useImageNavigation";
 
 type View = "original" | "mask" | "isolated";
 type Assets =
@@ -8,10 +9,10 @@ type Assets =
   | { kind: "ready"; mask: string; isolated: string }
   | { kind: "error"; message: string };
 const colors = ["#9f8cff", "#56d8b3", "#ffb76b", "#63c6ff", "#f68bb8"];
-const views: { key: View; label: string }[] = [
-  { key: "original", label: "Original" },
-  { key: "mask", label: "Mask" },
-  { key: "isolated", label: "Cutout" },
+const views: { key: View; label: string; shortcut: string }[] = [
+  { key: "original", label: "Original", shortcut: "q" },
+  { key: "mask", label: "Mask", shortcut: "w" },
+  { key: "isolated", label: "Cutout", shortcut: "e" },
 ];
 
 function peoplePageSize() {
@@ -31,6 +32,7 @@ export function Detail({ imageId }: { imageId: string }) {
   const [personPage, setPersonPage] = useState(0);
   const [assets, setAssets] = useState<Assets>({ kind: "idle" });
   const [hasImageError, setHasImageError] = useState(false);
+  const navigation = useImageNavigation(image !== null);
   const selected = chosen ?? image?.people.map((person) => person.index) ?? [];
   const selectionKey = [...selected].sort((a, b) => a - b).join(",");
   const hasAllSelected =
@@ -40,6 +42,66 @@ export function Detail({ imageId }: { imageId: string }) {
     Math.ceil((image?.people.length ?? 0) / peoplePerPage),
   );
   const currentPersonPage = Math.min(personPage, personPageCount - 1);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      )
+        return;
+      if (!navigation.viewerRef.current?.closest("dialog")?.open) return;
+      if (
+        event.target instanceof HTMLElement &&
+        (event.target.isContentEditable ||
+          event.target.closest(
+            "input:not([type='checkbox']):not([type='radio']), textarea, select",
+          ))
+      )
+        return;
+      const key = event.key.toLowerCase();
+      if (key === "+" || key === "=" || key === "-" || key === "0") {
+        event.preventDefault();
+        if (key === "0") navigation.onReset();
+        else navigation.onZoom(key === "-" ? 0.8 : 1.25);
+        return;
+      }
+      if (/^[1-9]$/.test(key) && image?.status === "ready") {
+        const index = Number(key);
+        if (
+          event.repeat ||
+          !image.people.some((person) => person.index === index)
+        )
+          return;
+        event.preventDefault();
+        setChosen((previous) => {
+          const current =
+            previous ?? image.people.map((person) => person.index);
+          return current.includes(index)
+            ? current.filter((value) => value !== index)
+            : [...current, index];
+        });
+        setPersonPage(Math.floor((index - 1) / peoplePerPage));
+        return;
+      }
+      const next = views.find((option) => option.shortcut === key)?.key;
+      if (!next || (next !== "original" && image?.status !== "ready")) return;
+      event.preventDefault();
+      setView(next);
+      setHasImageError(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [
+    image,
+    peoplePerPage,
+    navigation.viewerRef,
+    navigation.onZoom,
+    navigation.onReset,
+  ]);
 
   useEffect(() => {
     const onResize = () => setPeoplePerPage(peoplePageSize());
@@ -203,24 +265,65 @@ export function Detail({ imageId }: { imageId: string }) {
                   key={option.key}
                   className={view === option.key ? "is-selected" : ""}
                   aria-pressed={view === option.key}
+                  aria-label={option.label}
+                  aria-keyshortcuts={option.shortcut}
+                  title={`${option.label} (${option.shortcut.toUpperCase()})`}
                   disabled={!isReady && option.key !== "original"}
                   onClick={() => onChangeView(option.key)}
                 >
-                  {option.label}
+                  {option.label}{" "}
+                  <kbd aria-hidden="true">{option.shortcut.toUpperCase()}</kbd>
                 </button>
               ))}
             </div>
+            <div className="zoom-controls" aria-label="Image zoom">
+              <button
+                aria-label="Zoom out"
+                aria-keyshortcuts="-"
+                title="Zoom out (−)"
+                onClick={() => navigation.onZoom(0.8)}
+                disabled={navigation.viewport.scale <= 0.25}
+              >
+                −
+              </button>
+              <button
+                aria-label="Reset image to fit"
+                aria-keyshortcuts="0"
+                title="Reset image to fit (0)"
+                onClick={navigation.onReset}
+              >
+                {navigation.viewport.scale === 1
+                  ? "Fit"
+                  : `${navigation.viewport.scale.toFixed(1)}×`}
+              </button>
+              <button
+                aria-label="Zoom in"
+                aria-keyshortcuts="Shift+= ="
+                title="Zoom in (+)"
+                onClick={() => navigation.onZoom(1.25)}
+                disabled={navigation.viewport.scale >= 12}
+              >
+                +
+              </button>
+            </div>
           </div>
           <div
-            className={`viewer ${view === "isolated" ? "checkerboard" : ""}`}
+            ref={navigation.viewerRef}
+            {...navigation.viewerEvents}
+            className={`viewer ${navigation.isDragging ? "is-dragging" : ""} ${view === "isolated" ? "checkerboard" : ""}`}
+            title="Drag or scroll to pan. Pinch or Ctrl/Cmd+scroll to zoom."
+            role="region"
+            aria-label="Image canvas"
           >
             <div className="viewer-inner">
               {asset ? (
                 <div
                   className="image-plane"
+                  ref={navigation.imageRef}
                   style={{
                     width: `min(100cqw, ${(100 * image.width) / image.height}cqh)`,
                     aspectRatio: `${image.width}/${image.height}`,
+                    transform: `translate(${navigation.viewport.x}px, ${navigation.viewport.y}px) scale(${navigation.viewport.scale})`,
                   }}
                 >
                   <img
@@ -407,6 +510,11 @@ export function Detail({ imageId }: { imageId: string }) {
                         >
                           <input
                             type="checkbox"
+                            aria-keyshortcuts={
+                              person.index <= 9
+                                ? String(person.index)
+                                : undefined
+                            }
                             checked={selected.includes(person.index)}
                             onChange={() => onTogglePerson(person.index)}
                           />

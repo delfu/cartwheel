@@ -478,7 +478,7 @@ h1 {
   border-radius: 9px 9px 0 0;
   padding: 0 16px;
   background: #fff;
-  gap: 15px;
+  gap: 8px;
 }
 .view-options {
   display: flex;
@@ -490,7 +490,10 @@ h1 {
 .view-options button {
   border: 0;
   background: transparent;
-  padding: 6px 16px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 500;
   color: #74767e;
@@ -501,6 +504,32 @@ h1 {
   box-shadow: 0 1px 4px #0000000c;
   color: #30313a;
 }
+.view-options kbd {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #e9e8e5;
+  color: #62636b;
+  font-family: inherit;
+  font-size: 9px;
+}
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.zoom-controls button {
+  min-width: 24px;
+  height: 28px;
+  padding: 2px 4px;
+  border: 1px solid #dededb;
+  border-radius: 4px;
+  background: white;
+  color: #4a4b55;
+  font-size: 11px;
+}
+.zoom-controls button:nth-child(2) {
+  min-width: 36px;
+}
 .viewer {
   position: relative;
   min-height: 0;
@@ -509,6 +538,13 @@ h1 {
   background: #202227;
   border: 1px solid #d8d9d6;
   border-top: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.viewer.is-dragging,
+.viewer.is-dragging .selection-overlay rect[role="button"] {
+  cursor: grabbing;
 }
 .viewer-inner {
   display: grid;
@@ -937,9 +973,6 @@ h1 {
   }
   .selection-summary span {
     font-size: 11px;
-  }
-  .view-options button {
-    padding: 6px 13px;
   }
   .person-copy strong {
     font-size: 12px;
