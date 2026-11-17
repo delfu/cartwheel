@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 
 class BoundingBox(TypedDict):
@@ -13,7 +13,6 @@ class BoundingBox(TypedDict):
 
 
 class PersonResult(TypedDict):
-    track_id: NotRequired[int]
     index: int
     confidence: float
     bbox: BoundingBox
@@ -46,7 +45,21 @@ class VideoClaim:
     token: str
     source_path: Path
     output_dir: Path
-    start_seconds: float
-    end_seconds: float
-    max_frames: int
+    tracker: str
+
+
+class VideoTrack(TypedDict):
+    track_id: int
+    mask_video: str
+    first_frame: int
+    last_frame: int
+
+
+class VideoResult(TypedDict):
+    playback: str
+    width: int
+    height: int
+    fps: float
+    frame_count: int
+    tracks: list[VideoTrack]
     tracker: str

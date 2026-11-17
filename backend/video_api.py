@@ -1,48 +1,35 @@
-"""Manual video processing and frame artifact endpoints."""
+"""Video uploads, full-clip jobs, and seekable per-person mask streams."""
 
-from io import BytesIO
 import os
 from pathlib import Path
 import shutil
-from typing import Annotated, Literal
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import FileResponse, Response
-import numpy as np
-from PIL import Image
-from pydantic import BaseModel, Field
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, ConfigDict
 from starlette.exceptions import HTTPException
 
-from backend.ml.pipeline import isolate
 from backend.ml.video import probe_video
 from backend.store import Store
 
 
-class VideoRange(BaseModel):
-    start_seconds: float = Field(ge=0, allow_inf_nan=False)
-    end_seconds: float = Field(gt=0, allow_inf_nan=False)
-    max_frames: int = Field(default=60, ge=1, le=60, strict=True)
+class VideoProcessing(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     tracker: Literal["botsort", "bytetrack"] = "botsort"
-
-
-class TrackSelection(BaseModel):
-    track_ids: list[Annotated[int, Field(strict=True, ge=1)]] = Field(max_length=300)
 
 
 def register_video_routes(app: FastAPI, store: Store) -> None:
     def run_response(run):
-        if "video_id" not in run:
-            raise KeyError("Video run not found")
+        if "video_id" not in run or run["mode"] != "full":
+            raise KeyError("Full-video run not found")
         result = run["result"]
         if result:
             prefix = f"/api/video-runs/{run['id']}/artifacts/"
-            for frame in result["frames"]:
-                for key in ("original", "preview", "mask", "isolated"):
-                    frame[f"{key}_url"] = prefix + frame[key]
-                for person in frame["people"]:
-                    person["mask_url"] = prefix + person["mask"]
-                    person["isolated_url"] = prefix + person["isolated"]
+            result["playback_url"] = prefix + result["playback"]
+            for track in result["tracks"]:
+                track["mask_video_url"] = prefix + track["mask_video"]
         return run
 
     def video_response(video):
@@ -94,9 +81,8 @@ def register_video_routes(app: FastAPI, store: Store) -> None:
         return FileResponse(store.video_path(video_id), media_type="video/mp4")
 
     @app.post("/api/videos/{video_id}/runs", status_code=202)
-    def process_range(video_id: str, selection: VideoRange):
-        return run_response(store.create_video_run(video_id, selection.start_seconds, selection.end_seconds,
-                                                    selection.max_frames, selection.tracker))
+    def process_full_video(video_id: str, selection: VideoProcessing):
+        return run_response(store.create_video_run(video_id, selection.tracker))
 
     @app.get("/api/video-runs/{job_id}")
     def get_run(job_id: str):
@@ -104,30 +90,4 @@ def register_video_routes(app: FastAPI, store: Store) -> None:
 
     @app.get("/api/video-runs/{job_id}/artifacts/{filename:path}")
     def get_artifact(job_id: str, filename: str):
-        return FileResponse(store.video_artifact_path(job_id, filename), media_type="image/png")
-
-    @app.post("/api/video-runs/{job_id}/frames/{frame_number}/cutout")
-    def cutout(job_id: str, frame_number: int, selection: TrackSelection,
-               view: Literal["mask", "isolated"] = "isolated"):
-        run = store.get_job(job_id)
-        if "video_id" not in run:
-            raise KeyError("Video run not found")
-        if run["status"] != "succeeded":
-            raise HTTPException(409, "Wait for video processing to finish")
-        result = run["result"]
-        if not 0 <= frame_number < len(result["frames"]):
-            raise KeyError("Processed frame not found")
-        indices = selection.track_ids
-        if len(indices) != len(set(indices)) or not set(indices) <= set(result["track_ids"]):
-            raise ValueError("Select unique track IDs from this processing run")
-        frame = result["frames"][frame_number]
-        with Image.open(store.video_artifact_path(job_id, frame["original"])) as original:
-            union = np.zeros((original.height, original.width), dtype=bool)
-            for person in frame["people"]:
-                if person["track_id"] in indices:
-                    with Image.open(store.video_artifact_path(job_id, person["mask"])) as mask:
-                        union |= np.array(mask) > 0
-            mask, isolated = isolate(original, [union])
-        buffer = BytesIO()
-        (mask if view == "mask" else isolated).save(buffer, format="PNG")
-        return Response(buffer.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
+        return FileResponse(store.video_artifact_path(job_id, filename), media_type="video/mp4")

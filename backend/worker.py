@@ -9,7 +9,7 @@ from pathlib import Path
 import shutil
 from threading import Event, Thread
 
-from backend.contracts import SegmentationResult, VideoClaim
+from backend.contracts import SegmentationResult, VideoClaim, VideoResult
 from backend.store import Store
 
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 Processor = Callable[[Path, Path], SegmentationResult]
 
 
-def run_once(store: Store, process: Processor, *, lease_seconds: float = 60, process_video=None) -> bool:
+def run_once(store: Store, process: Processor, *, lease_seconds: float = 60, process_video: Callable[..., VideoResult] | None = None) -> bool:
     if lease_seconds <= 0:
         raise ValueError("Lease duration must be positive")
     claim = store.claim(lease_seconds=lease_seconds)
@@ -41,8 +41,12 @@ def run_once(store: Store, process: Processor, *, lease_seconds: float = 60, pro
         if isinstance(claim, VideoClaim):
             if process_video is None:
                 from backend.ml.video import process_video
-            result = process_video(claim.source_path, claim.output_dir, start=claim.start_seconds,
-                                   end=claim.end_seconds, max_frames=claim.max_frames, tracker=claim.tracker)
+            def on_progress(processed: int, total: int) -> None:
+                if not store.update_video_progress(claim, processed, total):
+                    raise RuntimeError("Video processing lease lost")
+
+            result = process_video(claim.source_path, claim.output_dir, tracker=claim.tracker,
+                                   on_progress=on_progress)
         else:
             result = process(claim.source_path, claim.output_dir)
         for path in claim.output_dir.rglob("*"):

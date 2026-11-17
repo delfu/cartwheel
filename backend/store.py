@@ -9,7 +9,7 @@ import sqlite3
 import time
 from uuid import uuid4
 
-from backend.contracts import Claim, SegmentationResult, VideoClaim
+from backend.contracts import Claim, SegmentationResult, VideoClaim, VideoResult
 
 
 class Store:
@@ -51,6 +51,17 @@ class Store:
                 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs(status, available_at, created_at);
                 CREATE INDEX IF NOT EXISTS images_gallery ON images(created_at DESC, id DESC);
             """)
+            db.execute("BEGIN IMMEDIATE")
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(video_jobs)")}
+            if "mode" not in columns:
+                db.execute("ALTER TABLE video_jobs ADD COLUMN mode TEXT NOT NULL DEFAULT 'sampled'")
+                db.execute("""UPDATE video_jobs SET status='failed',token=NULL,lease_expires_at=NULL,
+                    error='Sampled processing replaced by full-video processing',finished_at=?,updated_at=?
+                    WHERE mode='sampled' AND status IN ('queued','processing')""", (time.time(), time.time()))
+            for column in ("processed_frames", "total_frames"):
+                if column not in columns:
+                    db.execute(f"ALTER TABLE video_jobs ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0")
+            db.commit()
 
     def _connect(self):
         db = sqlite3.connect(self.database, timeout=5, isolation_level=None)
@@ -173,8 +184,7 @@ class Store:
         if row is None:
             return None
         return VideoClaim(row["id"], row["video_id"], token, self.video_path(row["video_id"]),
-                          self.root / "jobs" / row["id"] / token, row["start_seconds"],
-                          row["end_seconds"], row["max_frames"], row["tracker"])
+                          self.root / "jobs" / row["id"] / token, row["tracker"])
 
     def _claim_row(self, table: str, lease_seconds: float):
         if lease_seconds <= 0:
@@ -192,6 +202,8 @@ class Store:
                 db.execute(f"""UPDATE {table} SET status='processing',attempts=attempts+1,token=?,
                     updated_at=?,started_at=COALESCE(started_at,?),lease_expires_at=? WHERE id=?""",
                            (token, now, now, now + lease_seconds, row["id"]))
+                if table == "video_jobs":
+                    db.execute("UPDATE video_jobs SET processed_frames=0,total_frames=0 WHERE id=?", (row["id"],))
         return row, token
 
     @staticmethod
@@ -207,7 +219,7 @@ class Store:
                 AND status='processing' AND lease_expires_at>?""",
                 (now, now + lease_seconds, claim.job_id, claim.token, now)).rowcount == 1
 
-    def succeed(self, claim: Claim | VideoClaim, result: SegmentationResult) -> bool:
+    def succeed(self, claim: Claim | VideoClaim, result: SegmentationResult | VideoResult) -> bool:
         with self._transaction() as db:
             now = time.time()
             return db.execute(f"""UPDATE {self._queue(claim)} SET status='succeeded',result_json=?,output_dir=?,updated_at=?,
@@ -235,8 +247,7 @@ class Store:
         if "video_id" in job:
             if job["status"] != "failed":
                 raise ValueError("Only failed video processing can be retried")
-            return self.create_video_run(job["video_id"], job["start_seconds"], job["end_seconds"],
-                                         job["max_frames"], job["tracker"])
+            return self.create_video_run(job["video_id"], job["tracker"])
         new_id = str(uuid4())
         with self._transaction() as db:
             now = time.time()
@@ -275,6 +286,7 @@ class Store:
         with self._transaction() as db:
             db.execute("INSERT INTO videos VALUES (?,?,?,?,?,?)", (video_id, filename,
                        metadata["width"], metadata["height"], metadata["duration"], time.time()))
+            self._insert_video_run(db, video_id, metadata["duration"], "botsort")
         return self.get_video(video_id)
 
     def get_video(self, video_id: str) -> dict:
@@ -282,7 +294,7 @@ class Store:
             row = db.execute("SELECT * FROM videos WHERE id=?", (video_id,)).fetchone()
             if row is None:
                 raise KeyError("Video not found")
-            runs = db.execute("SELECT * FROM video_jobs WHERE video_id=? ORDER BY created_at DESC,id DESC",
+            runs = db.execute("SELECT * FROM video_jobs WHERE video_id=? AND mode='full' ORDER BY created_at DESC,id DESC",
                               (video_id,)).fetchall()
         return dict(row, runs=[self._job(run) for run in runs])
 
@@ -291,35 +303,41 @@ class Store:
             rows = db.execute("SELECT * FROM videos ORDER BY created_at DESC,id DESC").fetchall()
         return [dict(row) for row in rows]
 
-    def create_video_run(self, video_id: str, start: float, end: float, max_frames: int, tracker: str) -> dict:
-        job_id = str(uuid4())
+    @staticmethod
+    def _insert_video_run(db, video_id: str, duration: float, tracker: str) -> str:
+        job_id, now = str(uuid4()), time.time()
+        db.execute("""INSERT INTO video_jobs(id,video_id,start_seconds,end_seconds,max_frames,tracker,
+            status,created_at,updated_at,available_at,mode) VALUES (?,?,0,?,0,?,'queued',?,?,?,'full')""",
+            (job_id, video_id, duration, tracker, now, now, now))
+        return job_id
+
+    def create_video_run(self, video_id: str, tracker: str = "botsort") -> dict:
         with self._transaction() as db:
             video = db.execute("SELECT duration FROM videos WHERE id=?", (video_id,)).fetchone()
             if video is None:
                 raise KeyError("Video not found")
-            if not (0 <= start < end <= video["duration"] and 1 <= max_frames <= 60
-                    and tracker in {"botsort", "bytetrack"}):
-                raise ValueError("Choose a valid video range, frame limit, and tracker")
+            if tracker not in {"botsort", "bytetrack"}:
+                raise ValueError("Choose botsort or bytetrack")
             if db.execute("SELECT 1 FROM video_jobs WHERE video_id=? AND status IN ('queued','processing')",
                           (video_id,)).fetchone():
                 raise ValueError("This video already has processing queued or running")
-            now = time.time()
-            db.execute("""INSERT INTO video_jobs(id,video_id,start_seconds,end_seconds,max_frames,tracker,
-                status,created_at,updated_at,available_at) VALUES (?,?,?,?,?,?,'queued',?,?,?)""",
-                (job_id, video_id, start, end, max_frames, tracker, now, now, now))
+            job_id = self._insert_video_run(db, video_id, video["duration"], tracker)
         return self.get_job(job_id)
+
+    def update_video_progress(self, claim: VideoClaim, processed: int, total: int) -> bool:
+        with self._transaction() as db:
+            return db.execute("""UPDATE video_jobs SET processed_frames=?,total_frames=?
+                WHERE id=? AND token=? AND status='processing' AND lease_expires_at>?""",
+                (processed, total, claim.job_id, claim.token, time.time())).rowcount == 1
 
     def video_artifact_path(self, job_id: str, filename: str) -> Path:
         with closing(self._connect()) as db:
-            row = db.execute("SELECT output_dir,result_json FROM video_jobs WHERE id=? AND status='succeeded'",
+            row = db.execute("SELECT output_dir,result_json FROM video_jobs WHERE id=? AND status='succeeded' AND mode='full'",
                              (job_id,)).fetchone()
         if row is None:
             raise KeyError("Completed video run not found")
-        allowed = set()
-        for frame in json.loads(row["result_json"])["frames"]:
-            allowed.update(frame[key] for key in ("original", "preview", "mask", "isolated"))
-            for person in frame["people"]:
-                allowed.update((person["mask"], person["isolated"]))
+        result = json.loads(row["result_json"])
+        allowed = {result["playback"], *(track["mask_video"] for track in result["tracks"])}
         if filename not in allowed:
             raise KeyError("Video artifact not found")
         path = self.root / row["output_dir"] / filename

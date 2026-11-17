@@ -1,57 +1,77 @@
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import cv2
 import numpy as np
-from PIL import Image
 import pytest
 import torch
 
 from backend.ml.video import probe_video, process_video
 
 
-CLIP = Path(__file__).parents[1] / "data/man-and-child-25fps.mp4"
+@pytest.fixture
+def clip(tmp_path):
+    path = tmp_path / "source.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=red:s=32x24:r=5:d=1",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path)], check=True)
+    return path
 
 
-def test_video_range_keeps_track_ids_when_detection_order_changes(tmp_path):
+def decoded_frames(path):
+    capture = cv2.VideoCapture(str(path))
+    frames = []
+    while True:
+        success, frame = capture.read()
+        if not success:
+            break
+        frames.append(frame)
+    capture.release()
+    return frames
+
+
+def test_full_video_masks_keep_ids_and_cover_absent_frames(clip, tmp_path):
     model = Mock()
-    calls = []
+    count = 0
 
     def track(image, **options):
-        calls.append(options)
-        ids = [17, 8] if len(calls) == 1 else ([8] if len(calls) == 2 else [8, 17])
+        nonlocal count
+        count += 1
+        ids = {1: [17], 2: [8], 3: [8, 17], 4: [], 5: [17]}[count]
         masks = torch.zeros((len(ids), image.height, image.width))
-        masks[:, :5, :5] = 1
-        boxes = SimpleNamespace(id=torch.tensor(ids), xyxy=torch.tensor([[0, 0, 5, 5]] * len(ids)),
-                                conf=torch.tensor([0.9] * len(ids)))
-        return [SimpleNamespace(boxes=boxes, masks=SimpleNamespace(data=masks))]
+        masks[:, :8, :8] = 1
+        return [SimpleNamespace(boxes=SimpleNamespace(id=torch.tensor(ids) if ids else None),
+                                masks=SimpleNamespace(data=masks))]
 
     model.track.side_effect = track
     factory = Mock(return_value=SimpleNamespace(model=model))
-    result = process_video(CLIP, tmp_path / "run", start=1, end=1.6, max_frames=3, model_factory=factory)
-    frames = result["frames"]
-    assert len(frames) == 3
-    assert result["track_ids"] == [8, 17]
-    assert [[p["track_id"] for p in frame["people"]] for frame in frames] == [[17, 8], [8], [8, 17]]
-    assert all(1 <= frame["timestamp"] < 1.6 for frame in frames)
-    assert frames[0]["timestamp"] < frames[1]["timestamp"] < frames[2]["timestamp"]
-    assert all(call["persist"] and call["tracker"] == "botsort.yaml" for call in calls)
+    progress = Mock()
+    output = tmp_path / "run"
+    result = process_video(clip, output, model_factory=factory, on_progress=progress)
+    assert result["frame_count"] == model.track.call_count == 5
+    assert result["fps"] == 5
+    assert [track["track_id"] for track in result["tracks"]] == [8, 17]
+    progress.assert_called_with(5, 5)
     factory.assert_called_once()
-    with Image.open(tmp_path / "run" / frames[1]["people"][0]["mask"]) as mask:
-        assert mask.size == (1920, 1080)
+    assert len(decoded_frames(output / result["playback"])) == 5
+    for identity, visibility in ((8, [False, True, True, False, False]), (17, [True, False, True, False, True])):
+        frames = decoded_frames(output / f"person-{identity:04d}.mp4")
+        assert len(frames) == 5
+        assert [bool((frame > 128).any()) for frame in frames] == visibility
+    assert {path.name for path in output.iterdir()} == {"playback.mp4", "person-0008.mp4", "person-0017.mp4"}
 
 
-def test_video_negative_frames_and_invalid_ranges(tmp_path):
+def test_negative_video_and_invalid_inputs(clip, tmp_path):
     factory = Mock(return_value=SimpleNamespace(model=Mock()))
     factory.return_value.model.track.return_value = [SimpleNamespace(boxes=SimpleNamespace(id=None))]
-    result = process_video(CLIP, tmp_path / "negative", start=0, end=0.2, max_frames=2, model_factory=factory)
-    assert result["track_ids"] == []
-    with Image.open(tmp_path / "negative" / result["frames"][0]["isolated"]) as image:
-        assert image.getchannel("A").getbbox() is None
-    with pytest.raises(ValueError, match="valid video range"):
-        process_video(CLIP, tmp_path / "invalid", start=2, end=1, model_factory=factory)
+    result = process_video(clip, tmp_path / "negative", model_factory=factory)
+    assert result["tracks"] == []
+    assert result["frame_count"] == 5
+    assert len(decoded_frames(tmp_path / "negative/playback.mp4")) == 5
     invalid = tmp_path / "invalid.mp4"
     invalid.write_bytes(b"not a video")
     with pytest.raises(ValueError, match="H.264 MP4"):
         probe_video(invalid)
+    with pytest.raises(ValueError, match="botsort"):
+        process_video(clip, tmp_path / "invalid", tracker="unknown", model_factory=factory)
