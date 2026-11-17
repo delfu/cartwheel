@@ -7,7 +7,8 @@ from time import perf_counter
 
 from PIL import UnidentifiedImageError
 
-from .pipeline import Segmenter, isolate, load_image, preview
+from .artifacts import export_segmentation
+from .pipeline import Segmenter, load_image
 
 
 def main() -> None:
@@ -25,32 +26,13 @@ def main() -> None:
         loaded = perf_counter()
         people = segmenter.segment(image)
         finished = perf_counter()
-        args.output.mkdir(parents=True, exist_ok=False)
+        result = export_segmentation(image, people, args.output)
         image.save(args.output / "original.png")
-        preview(image, people).save(args.output / "preview.png")
-        mask, isolated = isolate(image, [person.mask for person in people])
-        mask.save(args.output / "mask.png")
-        isolated.save(args.output / "isolated.png")
-        detections = []
-        for index, person in enumerate(people, 1):
-            mask_name = f"person-{index:03d}-mask.png"
-            isolated_name = f"person-{index:03d}-isolated.png"
-            mask, isolated = isolate(image, [person.mask])
-            mask.save(args.output / mask_name)
-            isolated.save(args.output / isolated_name)
-            x, y, width, height = person.bbox
-            detections.append({
-                "index": index, "confidence": person.confidence,
-                "bbox": {"x": x, "y": y, "width": width, "height": height},
-                "mask": mask_name, "isolated": isolated_name,
-            })
         metadata = {
             "source": str(args.image), "model": args.model,
-            "width": image.width, "height": image.height,
             "model_load_seconds": round(loaded - started, 3),
             "inference_seconds": round(finished - loaded, 3),
-            "original": "original.png", "preview": "preview.png",
-            "mask": "mask.png", "isolated": "isolated.png", "people": detections,
+            "original": "original.png", **result,
         }
         (args.output / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     except (OSError, ValueError, RuntimeError, UnidentifiedImageError) as error:
