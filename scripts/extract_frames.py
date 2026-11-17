@@ -6,7 +6,8 @@ from pathlib import Path
 import subprocess
 
 
-def extract_frames(video: Path, output: Path, *, overwrite: bool = False) -> list[dict]:
+def extract_frames(video: Path, output: Path, *, overwrite: bool = False,
+                   timestamps: list[float] | None = None) -> list[dict]:
     if not video.is_file():
         raise ValueError(f"Video does not exist: {video}")
     duration = float(subprocess.check_output([
@@ -15,13 +16,16 @@ def extract_frames(video: Path, output: Path, *, overwrite: bool = False) -> lis
     ], text=True).strip())
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("Video must have a finite, positive duration")
-    paths = [output / f"{video.stem}-frame-{index}.png" for index in (1, 2)]
+    if timestamps is None:
+        timestamps = [round(duration * fraction, 3) for fraction in (0.25, 0.6)]
+    if any(not math.isfinite(timestamp) or not 0 <= timestamp < duration for timestamp in timestamps):
+        raise ValueError("Frame timestamps must be within the video's duration")
+    paths = [output / f"{video.stem}-frame-{index}.png" for index in range(1, len(timestamps) + 1)]
     if not overwrite and any(path.exists() for path in paths):
         raise ValueError("Output frames already exist; choose another folder or use --overwrite")
     output.mkdir(parents=True, exist_ok=True)
     frames = []
-    for fraction, path in zip((0.25, 0.6), paths, strict=True):
-        timestamp = round(duration * fraction, 3)
+    for timestamp, path in zip(timestamps, paths, strict=True):
         subprocess.run([
             "ffmpeg", "-v", "error", "-y" if overwrite else "-n",
             "-ss", str(timestamp), "-i", str(video.resolve()),

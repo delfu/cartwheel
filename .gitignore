@@ -3,10 +3,7 @@ __pycache__/
 .pytest_cache/
 models/
 output/
-samples/*.jpg
-samples/*.png
 .DS_Store
-/data
 /storage/
 /.worktrees/
 node_modules/

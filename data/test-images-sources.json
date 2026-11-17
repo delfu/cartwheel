@@ -1,0 +1,178 @@
+[
+  {
+    "image": "people-bus.jpg",
+    "source": "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/assets/bus.jpg",
+    "sha256": "c02019c4979c191eb739ddd944445ef408dad5679acab6fd520ef9d434bfbc63",
+    "width": 810,
+    "height": 1080,
+    "contains_people": true
+  },
+  {
+    "image": "people-zidane.jpg",
+    "source": "https://raw.githubusercontent.com/ultralytics/ultralytics/main/ultralytics/assets/zidane.jpg",
+    "sha256": "16d73869e3267a7d4ed00de8e860833bd1657c1b252e94c0c348277adc7b6edb",
+    "width": 1280,
+    "height": 720,
+    "contains_people": true
+  },
+  {
+    "image": "negative-no-people.png",
+    "source": "Generated solid-color negative control",
+    "sha256": "1b2d263fd5c1c1576d3ddcafc53c09fb211f714dabf519ccf74143dfa3d610f3",
+    "width": 640,
+    "height": 480,
+    "contains_people": false
+  },
+  {
+    "image": "people-Boxers_3Characters-frame-1.png",
+    "source": "Boxers_3Characters.mp4",
+    "timestamp_seconds": 1.883,
+    "sha256": "59f610f2167271b7c0ea7262660dd4ab3054fd605a5de0401e641e02d16e5cab",
+    "width": 1920,
+    "height": 1080,
+    "contains_people": true
+  },
+  {
+    "image": "people-Boxers_3Characters-frame-2.png",
+    "source": "Boxers_3Characters.mp4",
+    "timestamp_seconds": 4.518,
+    "sha256": "4dfe1ab98281996e7eeee46c3a67bfad00cf016f642e86bc15c16afcaab87857",
+    "width": 1920,
+    "height": 1080,
+    "contains_people": true
+  },
+  {
+    "image": "people-man-and-child-25fps-frame-1.png",
+    "source": "man-and-child-25fps.mp4",
+    "timestamp_seconds": 2.032,
+    "sha256": "907cf3134a32cad8fde6ba8b97d44a5a59172d322599b2426b2b1f3d92752405",
+    "width": 1920,
+    "height": 1080,
+    "contains_people": true
+  },
+  {
+    "image": "people-man-and-child-25fps-frame-2.png",
+    "source": "man-and-child-25fps.mp4",
+    "timestamp_seconds": 4.876,
+    "sha256": "c7cd57a01f504adf66e462d7ff0ae6c038d094d4e0ef0adad4179c01529377ce",
+    "width": 1920,
+    "height": 1080,
+    "contains_people": true
+  },
+  {
+    "image": "people-astronaut.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/astronaut.png",
+    "contains_people": true,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5"
+  },
+  {
+    "image": "people-camera.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/camera.png",
+    "contains_people": true,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "b0793d2adda0fa6ae899c03989482bff9a42d3d5690fc7e3648f2795d730c23a"
+  },
+  {
+    "image": "negative-chelsea.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/chelsea.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 451,
+    "height": 300,
+    "sha256": "596aa1e7cb875eb79f437e310381d26b338a81c2da23439704a73c4651e8c4bb"
+  },
+  {
+    "image": "negative-coffee.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/coffee.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 600,
+    "height": 400,
+    "sha256": "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7"
+  },
+  {
+    "image": "negative-rocket.jpg",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/rocket.jpg",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 640,
+    "height": 427,
+    "sha256": "c2dd0de7c538df8d111e479619b129464d0269d0ae5fd18ca91d33a7fdfea95c"
+  },
+  {
+    "image": "negative-coins.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/coins.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 384,
+    "height": 303,
+    "sha256": "f8d773fc9cfa6f4d8e5942dc34d0a0788fcaed2a4fefbbed0aef5398d7ef4cba"
+  },
+  {
+    "image": "negative-moon.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/moon.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "78739619d11f7eb9c165bb5d2efd4772cee557812ec847532dbb1d92ef71f577"
+  },
+  {
+    "image": "negative-grass.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/grass.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "b6b6022426b38936c43a4ac09635cd78af074e90f42ffa8227ac8b7452d39f89"
+  },
+  {
+    "image": "negative-brick.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/brick.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "7966caf324f6ba843118d98f7a07746d22f6a343430add0233eca5f6eaaa8fcf"
+  },
+  {
+    "image": "negative-gravel.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.18.3/skimage/data/gravel.png",
+    "contains_people": false,
+    "source_documentation": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+    "width": 512,
+    "height": 512,
+    "sha256": "c48615b451bf1e606fbd72c0aa9f8cc0f068ab7111ef7d93bb9b0f2586440c12"
+  },
+  {
+    "image": "people-Boxers_3Characters-frame-3.png",
+    "source": "Boxers_3Characters.mp4",
+    "timestamp_seconds": 6.401,
+    "contains_people": true,
+    "width": 1920,
+    "height": 1080,
+    "sha256": "3f61eb7051b1c881215ae7bf7bf19c2005efbb1ec4f7e3038d348b2f65392e15"
+  },
+  {
+    "image": "people-man-and-child-25fps-frame-3.png",
+    "source": "man-and-child-25fps.mp4",
+    "timestamp_seconds": 6.908,
+    "contains_people": true,
+    "width": 1920,
+    "height": 1080,
+    "sha256": "a3019f8a79d17eeafda357f1245c1bc2d7b4115a58e7f902a6b3f55ffe3cfb34"
+  },
+  {
+    "image": "negative-checkerboard.png",
+    "source": "Generated checkerboard negative control",
+    "contains_people": false,
+    "width": 640,
+    "height": 480,
+    "sha256": "d99efced66051cac6858630ec0e00444477df56554bc7774792be32b014afb47"
+  }
+]
