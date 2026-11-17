@@ -106,3 +106,22 @@ run_once(Store(Path(sys.argv[1])), lambda source, output: os._exit(42), lease_se
     job = store.get_job(job_id)
     assert job["status"] == "succeeded"
     assert job["attempts"] == 2
+
+
+def test_deleted_image_cannot_be_republished_by_running_worker(tmp_path):
+    store = Store(tmp_path)
+    job_id = enqueue(store)
+    image_id = store.get_job(job_id)["image_id"]
+
+    def deleted_during_inference(source, output):
+        with Image.open(source) as original:
+            original.load()
+            store.delete_image(image_id)
+            # Inference can finish and create files after the API has deleted them.
+            return export_segmentation(original, [], output)
+
+    assert run_once(store, deleted_during_inference)
+    assert store.list_images()["total"] == 0
+    assert store.claim() is None
+    assert not (tmp_path / "jobs" / job_id).exists()
+    assert not store.original_path(image_id).exists()

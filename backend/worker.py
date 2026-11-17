@@ -63,6 +63,10 @@ def run_once(store: Store, process: Processor, *, lease_seconds: float = 60) -> 
         thread.join()
         if not published:
             shutil.rmtree(claim.output_dir, ignore_errors=True)
+            try:
+                claim.output_dir.parent.rmdir()
+            except OSError:
+                pass  # Another attempt may still be using this job directory.
     return True
 
 

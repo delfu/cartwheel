@@ -99,6 +99,8 @@ export const api = {
     body.set("file", file);
     return json("/api/images", imageSchema, { method: "POST", body });
   },
+  deleteImage: (id: string) =>
+    response(`/api/images/${encodeURIComponent(id)}`, { method: "DELETE" }),
   retry: (id: string) =>
     json(`/api/jobs/${encodeURIComponent(id)}/retry`, jobSchema, {
       method: "POST",

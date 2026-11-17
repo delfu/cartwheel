@@ -144,6 +144,11 @@ def create_app(root: Path | None = None) -> FastAPI:
     def get_image(image_id: str):
         return image_response(store.get_image(image_id))
 
+    @app.delete("/api/images/{image_id}", status_code=204)
+    def delete_image(image_id: str):
+        store.delete_image(image_id)
+        return Response(status_code=204)
+
     @app.get("/api/images/{image_id}/original")
     def get_original(image_id: str):
         store.get_image(image_id)

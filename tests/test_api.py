@@ -87,3 +87,55 @@ def test_retry_rejects_non_failed_jobs(tmp_path):
     image = upload(client).json()
     response = client.post(f"/api/jobs/{image['job']['id']}/retry")
     assert response.status_code == 409
+
+
+def test_delete_removes_image_jobs_and_files_without_affecting_other_images(tmp_path):
+    from backend.ml.artifacts import export_segmentation
+    from backend.worker import run_once
+
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    image = upload(client).json()
+    other = upload(client).json()
+    store = app.state.store
+    # Include an older failed attempt and a successful retry in the deletion.
+    claim = store.claim()
+    claim.output_dir.mkdir(parents=True)
+    (claim.output_dir / "partial.png").write_bytes(b"partial")
+    with store._transaction() as db:
+        db.execute("UPDATE jobs SET max_attempts=1 WHERE id=?", (claim.job_id,))
+    assert store.fail(claim, "failed attempt")
+    retried = store.retry(claim.job_id)
+
+    def process(source, output):
+        with Image.open(source) as original:
+            return export_segmentation(original, [], output)
+
+    while run_once(store, process):
+        pass
+    mask_url = client.get(f"/api/images/{image['id']}").json()["mask_url"]
+    assert client.get(mask_url).status_code == 200
+    response = client.delete(f"/api/images/{image['id']}")
+    assert response.status_code == 204
+    assert response.content == b""
+    for url in (f"/api/images/{image['id']}", image["original_url"], mask_url,
+                f"/api/jobs/{claim.job_id}", f"/api/jobs/{retried['id']}"):
+        assert client.get(url).status_code == 404
+    assert client.post(f"/api/jobs/{claim.job_id}/retry").status_code == 404
+    assert not store.original_path(image["id"]).parent.exists()
+    assert not (tmp_path / "jobs" / claim.job_id).exists()
+    assert not (tmp_path / "jobs" / retried["id"]).exists()
+    gallery = client.get("/api/images").json()
+    assert gallery["total"] == 1
+    assert gallery["items"][0]["id"] == other["id"]
+    assert client.get(other["original_url"]).status_code == 200
+    assert client.delete(f"/api/images/{image['id']}").status_code == 404
+
+
+def test_delete_queued_image_prevents_processing(tmp_path):
+    app = create_app(tmp_path)
+    client = TestClient(app)
+    image = upload(client).json()
+    assert client.delete(f"/api/images/{image['id']}").status_code == 204
+    assert app.state.store.claim() is None
+    assert client.get("/api/images").json() == {"items": [], "next_cursor": None, "total": 0}

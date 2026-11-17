@@ -3,6 +3,7 @@
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 import json
+import shutil
 from pathlib import Path
 import sqlite3
 import time
@@ -129,6 +130,22 @@ class Store:
                 f"SELECT * FROM jobs WHERE id IN ({placeholders})", [row["latest_job_id"] for row in page])}
         return {"items": [self._image(row, jobs[row["latest_job_id"]]) for row in page],
                 "next_cursor": page[-1]["id"] if len(rows) > limit else None, "total": total}
+
+    def delete_image(self, image_id: str) -> None:
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM images WHERE id=?", (image_id,)).fetchone() is None:
+                raise KeyError("Image not found")
+            job_ids = [row["id"] for row in db.execute(
+                "SELECT id FROM jobs WHERE image_id=?", (image_id,))]
+            db.execute("DELETE FROM jobs WHERE image_id=?", (image_id,))
+            db.execute("DELETE FROM images WHERE id=?", (image_id,))
+        # Removing job rows fences running workers before any files disappear.
+        for directory in [self.original_path(image_id).parent,
+                          *(self.root / "jobs" / job_id for job_id in job_ids)]:
+            try:
+                shutil.rmtree(directory)
+            except FileNotFoundError:
+                pass
 
     def claim(self, lease_seconds: float = 60) -> Claim | None:
         if lease_seconds <= 0:

@@ -173,6 +173,10 @@ h1 {
     border-color 0.16s,
     box-shadow 0.16s;
 }
+.card-delete {
+  margin: 0 16px 16px;
+  color: #b42318;
+}
 .image-card:hover {
   border-color: #bfb5e6;
   box-shadow: 0 5px 18px #2521340b;
@@ -242,7 +246,7 @@ h1 {
   transition: opacity 0.15s;
 }
 .image-card:hover .card-open,
-.image-card:focus-visible .card-open {
+.image-card:focus-within .card-open {
   opacity: 1;
 }
 .card-info {

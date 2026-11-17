@@ -14,6 +14,7 @@ export function Gallery({
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
@@ -60,7 +61,22 @@ export function Gallery({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [images]);
+  }, [images, refresh]);
+
+  const onDelete = async (image: ImageRecord) => {
+    if (!window.confirm(`Delete "${image.filename}" and all its masks and cutouts? This cannot be undone.`)) return;
+    setDeletingId(image.id);
+    setError(null);
+    try {
+      await api.deleteImage(image.id);
+      setImages((previous) => previous.filter((item) => item.id !== image.id));
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      setError(errorMessage(error));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const onLoadMore = async () => {
     if (!cursor) return;
@@ -151,47 +167,52 @@ export function Gallery({
       ) : (
         <div className="image-grid">
           {images.map((image) => (
-            <a
-              className="image-card"
-              key={image.id}
-              href={`#/images/${image.id}`}
-              aria-haspopup="dialog"
-            >
-              <div className="card-image">
-                <img
-                  src={image.original_url}
-                  alt={image.filename}
-                  loading="lazy"
-                />
-                <span
-                  className={`status-badge ${image.status === "queued" ? "processing" : image.status}`}
-                >
-                  {(image.status === "processing" ||
-                    image.status === "queued") && (
-                    <span className="status-dot" />
-                  )}{" "}
-                  {image.status === "ready"
-                    ? `${image.people.length} ${image.people.length === 1 ? "person" : "people"} detected`
-                    : image.status === "failed"
-                      ? "Failed"
-                      : "Processing"}
-                </span>
-                <span className="card-open" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-              <div className="card-info">
-                <h2 title={image.filename}>{image.filename}</h2>
-                <p>
-                  <span>
-                    {new Date(image.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+            <article className="image-card" key={image.id}>
+              <a href={`#/images/${image.id}`} aria-haspopup="dialog">
+                <div className="card-image">
+                  <img
+                    src={image.original_url}
+                    alt={image.filename}
+                    loading="lazy"
+                  />
+                  <span
+                    className={`status-badge ${image.status === "queued" ? "processing" : image.status}`}
+                  >
+                    {(image.status === "processing" ||
+                      image.status === "queued") && (
+                      <span className="status-dot" />
+                    )}{" "}
+                    {image.status === "ready"
+                      ? `${image.people.length} ${image.people.length === 1 ? "person" : "people"} detected`
+                      : image.status === "failed"
+                        ? "Failed"
+                        : "Processing"}
                   </span>
-                </p>
-              </div>
-            </a>
+                  <span className="card-open" aria-hidden="true">
+                    ↗
+                  </span>
+                </div>
+                <div className="card-info">
+                  <h2 title={image.filename}>{image.filename}</h2>
+                  <p>
+                    <span>
+                      {new Date(image.created_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </p>
+                </div>
+              </a>
+              <button
+                className="text-button card-delete"
+                aria-label={`Delete ${image.filename}`}
+                disabled={isLoading || deletingId !== null}
+                onClick={() => onDelete(image)}
+              >
+                {deletingId === image.id ? "Deleting…" : "Delete"}
+              </button>
+            </article>
           ))}
         </div>
       )}
