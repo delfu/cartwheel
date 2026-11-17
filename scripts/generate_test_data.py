@@ -4,10 +4,11 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 from urllib.request import urlopen
 
 from PIL import Image
+
+from extract_frames import extract_frames
 
 
 def main() -> None:
@@ -31,18 +32,7 @@ def main() -> None:
         if not videos:
             parser.error("No MP4 clips found in the video directory")
         for video in videos:
-            duration = float(subprocess.check_output([
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", str(video),
-            ], text=True).strip())
-            for index, fraction in enumerate((0.25, 0.6), 1):
-                timestamp = round(duration * fraction, 3)
-                path = destination / f"{video.stem}-frame-{index}.png"
-                subprocess.run([
-                    "ffmpeg", "-v", "error", "-y", "-ss", str(timestamp),
-                    "-i", str(video), "-frames:v", "1", "-update", "1", str(path),
-                ], check=True)
-                sources.append({"image": path.name, "source": video.name, "timestamp_seconds": timestamp})
+            sources.extend(extract_frames(video, destination, overwrite=True))
     for source in sources:
         path = destination / source["image"]
         source["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
