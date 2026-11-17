@@ -92,3 +92,19 @@ The API and ML pipeline share a result contract. The frontend consumes that cont
 
 - Selections reference person indices within an image's current result. The frontend holds the selection; the API generates selected outputs on demand without persisting selection records.
 - Keep test inputs together under `data`, tracked in Git with source metadata. Include both people and negative cases in the 20-image set.
+
+# Potential follow-ups
+
+## Improve image segmentation
+
+### Manual mask refinement
+
+- Add brush and eraser tools to the image detail view. This would require user interaction.  
+- Provide Undo, Redo, and Reset.
+- Add a mask-upload endpoint, such as `POST /api/images/{image_id}/cutout-from-mask`, for saving or exporting the adjusted cutout without rerunning ML.
+
+### Larger models and higher-resolution inference
+
+- Compare the current YOLOv8n baseline with larger segmentation models, starting with YOLOv8s.
+- Compare results using a different segmentation model
+
