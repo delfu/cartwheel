@@ -21,7 +21,13 @@ function peoplePageSize() {
   return window.innerHeight < 800 ? 2 : 4;
 }
 
-export function Detail({ imageId }: { imageId: string }) {
+export function Detail({
+  imageId,
+  onClose,
+}: {
+  imageId: string;
+  onClose: () => void;
+}) {
   const [image, setImage] = useState<ImageRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -189,9 +195,22 @@ export function Detail({ imageId }: { imageId: string }) {
     }
   };
 
+  const closeButton = (
+    <button
+      className="close-details"
+      aria-label="Close details"
+      title="Close details"
+      autoFocus
+      onClick={onClose}
+    >
+      ×
+    </button>
+  );
+
   if (!image)
     return (
       <section className="detail-page">
+        <div className="loading-details-actions">{closeButton}</div>
         {error ? (
           <div className="empty-state">
             <h1>Couldn't load this image</h1>
@@ -236,14 +255,17 @@ export function Detail({ imageId }: { imageId: string }) {
             </span>
           </p>
         </div>
-        <a
-          className={`button primary ${assets.kind !== "ready" ? "is-disabled" : ""}`}
-          href={assets.kind === "ready" ? assets.isolated : undefined}
-          aria-disabled={assets.kind !== "ready"}
-          download={`${image.filename.replace(/\.[^.]+$/, "")}-cutout.png`}
-        >
-          Download cutout <span aria-hidden="true">↓</span>
-        </a>
+        <div className="detail-actions">
+          <a
+            className={`button primary ${assets.kind !== "ready" ? "is-disabled" : ""}`}
+            href={assets.kind === "ready" ? assets.isolated : undefined}
+            aria-disabled={assets.kind !== "ready"}
+            download={`${image.filename.replace(/\.[^.]+$/, "")}-cutout.png`}
+          >
+            Download cutout <span aria-hidden="true">↓</span>
+          </a>
+          {closeButton}
+        </div>
       </div>
       {error && (
         <div className="error-banner" role="alert">

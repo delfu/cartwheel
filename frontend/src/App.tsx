@@ -122,16 +122,9 @@ export function App() {
         }}
       >
         <div className="modal-content">
-          <div className="modal-close-bar">
-            <button
-              className="button secondary"
-              autoFocus
-              onClick={onCloseDetails}
-            >
-              Close details <span aria-hidden="true">×</span>
-            </button>
-          </div>
-          {imageId && <Detail key={imageId} imageId={imageId} />}
+          {imageId && (
+            <Detail key={imageId} imageId={imageId} onClose={onCloseDetails} />
+          )}
         </div>
       </dialog>
     </>

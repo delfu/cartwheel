@@ -297,22 +297,35 @@ h1 {
   background: #15182099;
 }
 .modal-content {
-  padding: 0 24px 24px;
+  padding: 16px 24px 24px;
   height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-.modal-close-bar {
+.detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.loading-details-actions {
   display: flex;
   justify-content: flex-end;
+}
+.close-details {
+  width: 36px;
+  height: 42px;
   flex-shrink: 0;
-  z-index: 2;
-  padding: 12px 0;
-  background: #f6f6f3;
+  padding: 0;
+  border: 1px solid #dcdcda;
+  border-radius: 6px;
+  background: white;
+  color: #45464f;
+  font-size: 22px;
 }
 .image-dialog .detail-page {
-  padding-top: 8px;
+  padding-top: 0;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -857,7 +870,7 @@ h1 {
     border-radius: 8px;
   }
   .modal-content {
-    padding: 0 12px 16px;
+    padding: 12px 12px 16px;
   }
   .card-info p {
     align-items: flex-start;
@@ -997,14 +1010,11 @@ h1 {
     max-height: calc(100dvh - 16px);
   }
   .modal-content {
-    padding: 0 12px 10px;
+    padding: 10px 12px;
   }
-  .modal-close-bar {
-    padding: 6px 0;
-  }
-  .modal-close-bar .button {
-    min-height: 30px;
-    padding: 4px 10px;
+  .close-details {
+    height: 30px;
+    width: 30px;
   }
   .detail-heading {
     margin-bottom: 8px;

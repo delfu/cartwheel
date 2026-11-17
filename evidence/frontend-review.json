@@ -41,5 +41,25 @@
     "observed_overflow": false,
     "preview": "output/frontend-review/modal-fit.png",
     "build": "Typecheck and production build passed"
+  },
+  "keyboard_navigation_review": {
+    "views": "Q/W/E select Original/Mask/Cutout only inside an open image modal",
+    "people": "1-9 toggle existing people, including people on another list page",
+    "zoom": "+ and = zoom in; - zooms out; 0 resets the fitted view",
+    "manual_checks": [
+      "view shortcuts",
+      "person toggles",
+      "zoom steps and reset",
+      "wheel pan",
+      "drag pan without changing person selection",
+      "shortcuts inactive on gallery"
+    ],
+    "hardware_trackpad_pinch": "Needs user verification"
+  },
+  "compact_header_review": {
+    "layout": "Title, Download and Close share one header row; no separate close row",
+    "viewport_checked": "514x852",
+    "observed_modal_overflow": false,
+    "preview": "output/frontend-review/compact-controls.png"
   }
 }
