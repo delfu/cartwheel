@@ -39,6 +39,47 @@ const pageSchema = z.object({
   next_cursor: z.string().nullable(),
   total: z.number().int().nonnegative(),
 });
+const videoFrameSchema = z.object({
+  frame_index: z.number().int().nonnegative(),
+  timestamp: z.number().nonnegative(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  original_url: assetUrl,
+  preview_url: assetUrl,
+  mask_url: assetUrl,
+  isolated_url: assetUrl,
+  people: z.array(
+    personSchema.extend({ track_id: z.number().int().positive() }),
+  ),
+});
+const videoRunSchema = jobSchema.extend({
+  video_id: z.string(),
+  start_seconds: z.number(),
+  end_seconds: z.number(),
+  max_frames: z.number().int(),
+  tracker: z.enum(["botsort", "bytetrack"]),
+  result: z
+    .object({
+      frames: z.array(videoFrameSchema),
+      track_ids: z.array(z.number().int().positive()),
+      tracker: z.string(),
+    })
+    .nullable(),
+});
+const videoSummarySchema = z.object({
+  id: z.string(),
+  filename: z.string(),
+  width: z.number(),
+  height: z.number(),
+  duration: z.number().positive(),
+  original_url: assetUrl,
+});
+const videoSchema = videoSummarySchema.extend({
+  runs: z.array(videoRunSchema),
+});
+export type VideoRecord = z.infer<typeof videoSchema>;
+export type VideoSummary = z.infer<typeof videoSummarySchema>;
+
 const errorSchema = z.object({ error: z.object({ message: z.string() }) });
 export type ImageRecord = z.infer<typeof imageSchema>;
 export type Person = z.infer<typeof personSchema>;
@@ -86,6 +127,51 @@ async function json<S extends z.ZodType>(
 }
 
 export const api = {
+  videos: (signal: AbortSignal) =>
+    json("/api/videos", z.object({ items: z.array(videoSummarySchema) }), {
+      signal,
+    }),
+  video: (id: string, signal?: AbortSignal) =>
+    json(`/api/videos/${encodeURIComponent(id)}`, videoSchema, { signal }),
+  uploadVideo: (file: File) => {
+    const body = new FormData();
+    body.set("file", file);
+    return json("/api/videos", videoSchema, { method: "POST", body });
+  },
+  processVideo: (
+    id: string,
+    range: {
+      start_seconds: number;
+      end_seconds: number;
+      max_frames: number;
+      tracker: "botsort" | "bytetrack";
+    },
+  ) =>
+    json(`/api/videos/${encodeURIComponent(id)}/runs`, videoRunSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(range),
+    }),
+  videoSelection: async (
+    runId: string,
+    frame: number,
+    trackIds: number[],
+    view: "mask" | "isolated",
+    signal: AbortSignal,
+  ) => {
+    const result = await response(
+      `/api/video-runs/${encodeURIComponent(runId)}/frames/${frame}/cutout?view=${view}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ track_ids: trackIds }),
+        signal,
+      },
+    );
+    if (!result.headers.get("content-type")?.startsWith("image/png"))
+      throw new Error("The server did not return a PNG image.");
+    return result.blob();
+  },
   gallery: (cursor: string | null, signal: AbortSignal) =>
     json(
       `/api/images?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,

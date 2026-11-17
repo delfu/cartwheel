@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { api, errorMessage } from "./api";
 import { Gallery } from "./Gallery";
 import { Detail } from "./Detail";
+import { Videos } from "./Videos";
 
 function imageFromHash() {
   const match = /^#\/images\/([^/]+)$/.exec(window.location.hash);
@@ -15,6 +16,9 @@ function imageFromHash() {
 }
 
 export function App() {
+  const [isVideoRoute, setIsVideoRoute] = useState(
+    window.location.hash.startsWith("#/videos"),
+  );
   const [imageId, setImageId] = useState(imageFromHash);
   const [revision, setRevision] = useState(0);
   const [upload, setUpload] = useState<{
@@ -44,7 +48,10 @@ export function App() {
   }, [imageId]);
 
   useEffect(() => {
-    const onHashChange = () => setImageId(imageFromHash());
+    const onHashChange = () => {
+      setImageId(imageFromHash());
+      setIsVideoRoute(window.location.hash.startsWith("#/videos"));
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -86,6 +93,14 @@ export function App() {
         aria-label="Upload PNG or JPEG images"
       />
       <main>
+        <nav className="media-tabs" aria-label="Media type">
+          <a href="#/" aria-current={!isVideoRoute ? "page" : undefined}>
+            Images
+          </a>
+          <a href="#/videos" aria-current={isVideoRoute ? "page" : undefined}>
+            Videos
+          </a>
+        </nav>
         {upload && (
           <div className="upload-progress" role="status">
             Uploading {upload.current} of {upload.total}. Images will process
@@ -103,11 +118,15 @@ export function App() {
             </button>
           </div>
         )}
-        <Gallery
-          key={revision}
-          onUpload={() => input.current?.click()}
-          upload={upload}
-        />
+        {isVideoRoute ? (
+          <Videos />
+        ) : (
+          <Gallery
+            key={revision}
+            onUpload={() => input.current?.click()}
+            upload={upload}
+          />
+        )}
       </main>
       <dialog
         ref={dialog}
