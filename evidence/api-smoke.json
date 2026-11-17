@@ -1,0 +1,38 @@
+{
+  "workers": 2,
+  "peak_processing": 2,
+  "api_restart": "passed",
+  "output_checks": "passed",
+  "jobs": [
+    {
+      "id": "0ae3e5a6-074a-4afa-acd9-83b87c75c270",
+      "image_id": "f6c1fc4a-319e-43fd-a87a-d8068ed2b8ff",
+      "seen": [
+        "queued",
+        "processing",
+        "succeeded"
+      ],
+      "people": 2
+    },
+    {
+      "id": "19f886fa-2ae5-4353-a332-6652be326727",
+      "image_id": "62558720-bae5-4370-b49f-3e5837300019",
+      "seen": [
+        "queued",
+        "processing",
+        "succeeded"
+      ],
+      "people": 5
+    },
+    {
+      "id": "9f424128-876e-4f8b-9fb2-1f5d94894a23",
+      "image_id": "65462a49-319d-436b-9943-323aaa0e4cd2",
+      "seen": [
+        "queued",
+        "processing",
+        "succeeded"
+      ],
+      "people": 0
+    }
+  ]
+}
