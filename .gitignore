@@ -9,3 +9,6 @@ samples/*.png
 /data
 /storage/
 /.worktrees/
+node_modules/
+dist/
+*.tsbuildinfo
