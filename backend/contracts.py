@@ -37,3 +37,16 @@ class Claim:
     token: str
     source_path: Path
     output_dir: Path
+
+
+@dataclass(frozen=True)
+class VideoClaim:
+    job_id: str
+    video_id: str
+    token: str
+    source_path: Path
+    output_dir: Path
+    start_seconds: float
+    end_seconds: float
+    max_frames: int
+    tracker: str

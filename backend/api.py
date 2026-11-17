@@ -30,17 +30,19 @@ class UploadLimit:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/api/images":
+        limits = {"/api/images": 26, "/api/videos": 101}
+        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] not in limits:
             return await self.app(scope, receive, send)
+        limit = limits[scope["path"]]
         size, exceeded, responded = 0, False, False
         response = JSONResponse(status_code=413, content={
-            "error": {"code": "request_failed", "message": "Upload request exceeds the 26 MiB limit"}})
+            "error": {"code": "request_failed", "message": f"Upload request exceeds the {limit} MiB limit"}})
 
         async def limited_receive():
             nonlocal size, exceeded
             message = await receive()
             size += len(message.get("body", b""))
-            if size > 26 * 1024 * 1024:
+            if size > limit * 1024 * 1024:
                 exceeded = True
                 # The multipart parser closes its temporary files for this exception.
                 raise MultiPartException("Upload request is too large")
@@ -189,4 +191,6 @@ def create_app(root: Path | None = None) -> FastAPI:
         except ValueError as error:
             raise HTTPException(409, str(error)) from error
 
+    from backend.video_api import register_video_routes
+    register_video_routes(app, store)
     return app
