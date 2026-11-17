@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
 class BoundingBox(TypedDict):
@@ -13,6 +13,7 @@ class BoundingBox(TypedDict):
 
 
 class PersonResult(TypedDict):
+    track_id: NotRequired[int]
     index: int
     confidence: float
     bbox: BoundingBox
