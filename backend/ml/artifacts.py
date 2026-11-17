@@ -1,6 +1,9 @@
 """Write person segmentation artifacts for CLI runs and queued jobs."""
 
+from contextlib import contextmanager
 from pathlib import Path
+import subprocess
+from tempfile import TemporaryFile
 
 from PIL import Image
 
@@ -36,3 +39,26 @@ def export_segmentation(image: Image.Image, people: list[Person], output: Path) 
             "mask": mask_name, "isolated": isolated_name,
         })
     return result
+
+
+@contextmanager
+def encode_video(path: Path, width: int, height: int, fps: float, pixel_format: str):
+    with TemporaryFile() as errors:
+        process = subprocess.Popen([
+            "ffmpeg", "-v", "error", "-nostdin", "-y", "-f", "rawvideo", "-pixel_format", pixel_format,
+            "-video_size", f"{width}x{height}", "-framerate", str(fps), "-i", "pipe:0", "-an",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "12", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart", str(path),
+        ], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=errors)
+        try:
+            yield process.stdin
+            process.stdin.close()
+            if process.wait(timeout=60) != 0:
+                errors.seek(0)
+                raise RuntimeError(f"Video encoding failed: {errors.read(2000).decode(errors='replace')}")
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.wait()
+            if not process.stdin.closed:
+                process.stdin.close()
