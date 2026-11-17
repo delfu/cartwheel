@@ -39,33 +39,31 @@ const pageSchema = z.object({
   next_cursor: z.string().nullable(),
   total: z.number().int().nonnegative(),
 });
-const videoFrameSchema = z.object({
-  frame_index: z.number().int().nonnegative(),
-  timestamp: z.number().nonnegative(),
-  width: z.number().positive(),
-  height: z.number().positive(),
-  original_url: assetUrl,
-  preview_url: assetUrl,
-  mask_url: assetUrl,
-  isolated_url: assetUrl,
-  people: z.array(
-    personSchema.extend({ track_id: z.number().int().positive() }),
-  ),
-});
 const videoRunSchema = jobSchema.extend({
   video_id: z.string(),
-  start_seconds: z.number(),
-  end_seconds: z.number(),
-  max_frames: z.number().int(),
+  processed_frames: z.number().int().nonnegative(),
+  total_frames: z.number().int().nonnegative(),
   tracker: z.enum(["botsort", "bytetrack"]),
   result: z
     .object({
-      frames: z.array(videoFrameSchema),
-      track_ids: z.array(z.number().int().positive()),
+      playback_url: assetUrl,
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+      fps: z.number().positive(),
+      frame_count: z.number().int().positive(),
       tracker: z.string(),
+      tracks: z.array(
+        z.object({
+          track_id: z.number().int().positive(),
+          mask_video_url: assetUrl,
+          first_frame: z.number().int().nonnegative(),
+          last_frame: z.number().int().nonnegative(),
+        }),
+      ),
     })
     .nullable(),
 });
+export type VideoResult = NonNullable<z.infer<typeof videoRunSchema>["result"]>;
 const videoSummarySchema = z.object({
   id: z.string(),
   filename: z.string(),
@@ -138,40 +136,12 @@ export const api = {
     body.set("file", file);
     return json("/api/videos", videoSchema, { method: "POST", body });
   },
-  processVideo: (
-    id: string,
-    range: {
-      start_seconds: number;
-      end_seconds: number;
-      max_frames: number;
-      tracker: "botsort" | "bytetrack";
-    },
-  ) =>
+  processVideo: (id: string, tracker: "botsort" | "bytetrack") =>
     json(`/api/videos/${encodeURIComponent(id)}/runs`, videoRunSchema, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(range),
+      body: JSON.stringify({ tracker }),
     }),
-  videoSelection: async (
-    runId: string,
-    frame: number,
-    trackIds: number[],
-    view: "mask" | "isolated",
-    signal: AbortSignal,
-  ) => {
-    const result = await response(
-      `/api/video-runs/${encodeURIComponent(runId)}/frames/${frame}/cutout?view=${view}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ track_ids: trackIds }),
-        signal,
-      },
-    );
-    if (!result.headers.get("content-type")?.startsWith("image/png"))
-      throw new Error("The server did not return a PNG image.");
-    return result.blob();
-  },
   gallery: (cursor: string | null, signal: AbortSignal) =>
     json(
       `/api/images?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,

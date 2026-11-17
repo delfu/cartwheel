@@ -80,8 +80,8 @@ export function Videos() {
         }}
       />
       <p className="video-hint">
-        H.264 MP4 · Up to 100 MiB and 10 minutes. Choose a range after
-        uploading.
+        H.264 MP4 · Up to 100 MiB and 10 minutes. The whole video processes
+        after uploading.
       </p>
       {error && (
         <p className="error-banner" role="alert">
