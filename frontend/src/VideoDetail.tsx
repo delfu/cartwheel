@@ -3,6 +3,7 @@ import { api, errorMessage } from "./api";
 import type { VideoRecord } from "./api";
 import { CompositeVideo } from "./CompositeVideo";
 import type { VideoView } from "./videoRenderer";
+import { peoplePageSize } from "./peoplePageSize";
 
 const views: { key: VideoView; label: string; shortcut: string }[] = [
   { key: "original", label: "Original", shortcut: "q" },
@@ -10,13 +11,21 @@ const views: { key: VideoView; label: string; shortcut: string }[] = [
   { key: "isolated", label: "Cutout", shortcut: "e" },
 ];
 
-export function VideoDetail({ videoId }: { videoId: string }) {
+export function VideoDetail({
+  videoId,
+  onClose,
+}: {
+  videoId: string;
+  onClose: () => void;
+}) {
   const [video, setVideo] = useState<VideoRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [chosen, setChosen] = useState<number[] | null>(null);
   const [view, setView] = useState<VideoView>("original");
+  const [peoplePerPage, setPeoplePerPage] = useState(peoplePageSize);
+  const [personPage, setPersonPage] = useState(0);
   const [tracker, setTracker] = useState<"botsort" | "bytetrack">("botsort");
   const run = video?.runs.find((item) => item.id === runId) ?? video?.runs[0];
   const result = run?.result;
@@ -26,6 +35,17 @@ export function VideoDetail({ videoId }: { videoId: string }) {
     video?.runs.some(
       (item) => item.status === "queued" || item.status === "processing",
     ) ?? false;
+
+  const personPageCount = Math.max(
+    1,
+    Math.ceil((result?.tracks.length ?? 0) / peoplePerPage),
+  );
+  const currentPersonPage = Math.min(personPage, personPageCount - 1);
+  useEffect(() => {
+    const onResize = () => setPeoplePerPage(peoplePageSize());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -59,6 +79,7 @@ export function VideoDetail({ videoId }: { videoId: string }) {
   }, [videoId, isProcessing]);
   useEffect(() => {
     setChosen(null);
+    setPersonPage(0);
   }, [run?.id]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -74,9 +95,21 @@ export function VideoDetail({ videoId }: { videoId: string }) {
       if (
         event.target instanceof HTMLElement &&
         (event.target.isContentEditable ||
-          event.target.closest("input, textarea, select"))
+          event.target.closest(
+            "input:not([type='checkbox']):not([type='radio']), textarea, select",
+          ))
       )
         return;
+      if (/^[1-9]$/.test(event.key) && !event.repeat) {
+        const index = Number(event.key) - 1;
+        const track = result.tracks[index];
+        if (track) {
+          event.preventDefault();
+          onToggleTrack(track.track_id);
+          setPersonPage(Math.floor(index / peoplePerPage));
+        }
+        return;
+      }
       const next = views.find(
         (item) => item.shortcut === event.key.toLowerCase(),
       );
@@ -87,7 +120,7 @@ export function VideoDetail({ videoId }: { videoId: string }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [result]);
+  }, [result, peoplePerPage]);
   const onProcess = async () => {
     if (isSubmitting || isProcessing) return;
     setIsSubmitting(true);
@@ -111,24 +144,92 @@ export function VideoDetail({ videoId }: { videoId: string }) {
         : [...current, id];
     });
 
+  const closeButton = (
+    <button
+      className="close-details"
+      aria-label="Close details"
+      title="Close details"
+      autoFocus
+      onClick={onClose}
+    >
+      ×
+    </button>
+  );
   if (!video)
     return (
-      <section>
-        <a href="#/videos">← Videos</a>
+      <section className="detail-page video-detail">
+        <div className="loading-details-actions">{closeButton}</div>
         <p role={error ? "alert" : "status"}>{error ?? "Loading video…"}</p>
       </section>
     );
+  const status =
+    run?.status === "succeeded" ? "ready" : (run?.status ?? "ready");
   return (
-    <section className="video-detail">
-      <a className="back-link" href="#/videos">
-        ← Videos
-      </a>
-      <div className="page-heading">
+    <section className="detail-page video-detail">
+      <div className="detail-heading">
         <div>
-          <h1>{video.filename}</h1>
-          <p className="video-hint">
-            {video.width} × {video.height} · {video.duration.toFixed(2)} seconds
+          <h1 title={video.filename}>{video.filename}</h1>
+          <p className="subheading">
+            {video.width.toLocaleString()} × {video.height.toLocaleString()} px
+            · {video.duration.toFixed(2)}s{" "}
+            <span className="inline-separator">/</span>
+            <span className={`inline-status ${status}`}>
+              {status === "ready"
+                ? "Ready"
+                : status === "queued"
+                  ? "Queued"
+                  : status === "processing"
+                    ? "Processing"
+                    : "Failed"}
+            </span>
           </p>
+        </div>
+        <div className="detail-actions">
+          <details className="video-options">
+            <summary className="button secondary" role="button">Processing options</summary>
+            <div className="video-options-menu">
+              {!!video.runs.length && (
+                <label className="run-picker">
+                  Processing run
+                  <select
+                    value={run?.id ?? ""}
+                    onChange={(event) => setRunId(event.target.value)}
+                  >
+                    {video.runs.map((item, index) => (
+                      <option key={item.id} value={item.id}>
+                        Run {video.runs.length - index} · {item.tracker} ·{" "}
+                        {item.status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="run-picker">
+                Tracker
+                <select
+                  value={tracker}
+                  onChange={(event) => {
+                    if (
+                      event.target.value === "botsort" ||
+                      event.target.value === "bytetrack"
+                    )
+                      setTracker(event.target.value);
+                  }}
+                >
+                  <option value="botsort">BoT-SORT</option>
+                  <option value="bytetrack">ByteTrack</option>
+                </select>
+              </label>
+              <button
+                className="button secondary"
+                disabled={isSubmitting || isProcessing}
+                onClick={onProcess}
+              >
+                {isSubmitting ? "Queueing…" : "Process whole video again"}
+              </button>
+            </div>
+          </details>
+          {closeButton}
         </div>
       </div>
       {error && (
@@ -136,8 +237,8 @@ export function VideoDetail({ videoId }: { videoId: string }) {
           {error}
         </p>
       )}
-      <div className="composite-workspace">
-        <div>
+      <div className="editor-layout">
+        <div className="editor-main">
           <div className="viewer-toolbar">
             <div className="view-options" aria-label="Video view">
               {views.map((option) => (
@@ -193,83 +294,106 @@ export function VideoDetail({ videoId }: { videoId: string }) {
             </p>
           )}
         </div>
-        <aside className="video-tracks">
-          <h2>People{result ? ` · ${selected.length} selected` : ""}</h2>
+        <aside className="people-panel" aria-label="Person selection">
+          <div className="panel-heading">
+            <h2>
+              People <span>{result?.tracks.length ?? 0}</span>
+            </h2>
+          </div>
           {!result ? (
-            <p className="video-hint">
-              People will appear after the whole video has been processed.
-            </p>
+            <div className="panel-state">
+              <p>
+                People will appear after the whole video has been processed.
+              </p>
+            </div>
           ) : (
             <>
+              <p className="panel-description">
+                Select the people you want to keep in your video.
+              </p>
               <div className="selection-actions">
                 <button
                   className="text-button"
+                  disabled={selected.length === result.tracks.length}
                   onClick={() =>
                     setChosen(result.tracks.map((track) => track.track_id))
                   }
                 >
                   Select all
                 </button>
-                <button className="text-button" onClick={() => setChosen([])}>
+                <button
+                  className="text-button"
+                  disabled={!selected.length}
+                  onClick={() => setChosen([])}
+                >
                   Clear selection
                 </button>
               </div>
-              {!result.tracks.length && <p>No people detected.</p>}
-              {result.tracks.map((track, index) => (
-                <label className="video-track" key={track.track_id}>
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(track.track_id)}
-                    onChange={() => onToggleTrack(track.track_id)}
-                  />
-                  Person {index + 1}
-                </label>
-              ))}
-              <p className="video-hint">
-                Selections apply throughout the video. Missing people contribute
-                black frames.
-              </p>
+              {!result.tracks.length && (
+                <div className="panel-state">
+                  <h3>No people detected</h3>
+                </div>
+              )}
+              <div className="person-list">
+                {result.tracks
+                  .slice(
+                    currentPersonPage * peoplePerPage,
+                    (currentPersonPage + 1) * peoplePerPage,
+                  )
+                  .map((track, offset) => {
+                    const number =
+                      currentPersonPage * peoplePerPage + offset + 1;
+                    return (
+                      <label
+                        className={`person-row ${selected.includes(track.track_id) ? "is-selected" : ""}`}
+                        key={track.track_id}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-keyshortcuts={
+                            number <= 9 ? String(number) : undefined
+                          }
+                          checked={selected.includes(track.track_id)}
+                          onChange={() => onToggleTrack(track.track_id)}
+                        />
+                        <span className="person-copy">
+                          <strong>Person {number}</strong>
+                        </span>
+                      </label>
+                    );
+                  })}
+              </div>
+              {personPageCount > 1 && (
+                <nav className="person-pagination" aria-label="People pages">
+                  <button
+                    className="text-button"
+                    disabled={currentPersonPage === 0}
+                    onClick={() => setPersonPage(currentPersonPage - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span>
+                    {currentPersonPage + 1} / {personPageCount}
+                  </span>
+                  <button
+                    className="text-button"
+                    disabled={currentPersonPage === personPageCount - 1}
+                    onClick={() => setPersonPage(currentPersonPage + 1)}
+                  >
+                    Next
+                  </button>
+                </nav>
+              )}
+              <div className="selection-summary" role="status">
+                <strong>
+                  {selected.length} of {result.tracks.length} selected
+                </strong>
+                <span>
+                  Your mask and cutout update automatically across the video.
+                </span>
+              </div>
             </>
           )}
-          {!!video.runs.length && (
-            <label className="run-picker">
-              Processing run
-              <select
-                value={run?.id ?? ""}
-                onChange={(event) => setRunId(event.target.value)}
-              >
-                {video.runs.map((item, index) => (
-                  <option key={item.id} value={item.id}>
-                    Run {video.runs.length - index} · {item.tracker} ·{" "}
-                    {item.status}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="run-picker">
-            Tracker
-            <select
-              value={tracker}
-              onChange={(event) => {
-                if (
-                  event.target.value === "botsort" ||
-                  event.target.value === "bytetrack"
-                )
-                  setTracker(event.target.value);
-              }}
-            >
-              <option value="botsort">BoT-SORT</option>
-              <option value="bytetrack">ByteTrack</option>
-            </select>
-          </label>
-          <button
-            className="button secondary"
-            disabled={isSubmitting || isProcessing}
-            onClick={onProcess}
-          >
-            {isSubmitting ? "Queueing…" : "Process whole video again"}
-          </button>
         </aside>
       </div>
     </section>

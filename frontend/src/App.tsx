@@ -4,22 +4,27 @@ import { api, errorMessage } from "./api";
 import { Gallery } from "./Gallery";
 import { Detail } from "./Detail";
 import { Videos } from "./Videos";
+import { VideoDetail } from "./VideoDetail";
 
-function imageFromHash() {
-  const match = /^#\/images\/([^/]+)$/.exec(window.location.hash);
+function detailFromHash(
+  hash: string,
+): { kind: "image" | "video"; id: string } | null {
+  const match = /^#\/(images|videos)\/([^/]+)$/.exec(hash);
   if (!match) return null;
   try {
-    return decodeURIComponent(match[1]);
+    return {
+      kind: match[1] === "images" ? "image" : "video",
+      id: decodeURIComponent(match[2]),
+    };
   } catch {
     return null;
   }
 }
 
 export function App() {
-  const [isVideoRoute, setIsVideoRoute] = useState(
-    window.location.hash.startsWith("#/videos"),
-  );
-  const [imageId, setImageId] = useState(imageFromHash);
+  const [hash, setHash] = useState(window.location.hash);
+  const isVideoRoute = hash.startsWith("#/videos");
+  const detail = detailFromHash(hash);
   const [revision, setRevision] = useState(0);
   const [upload, setUpload] = useState<{
     current: number;
@@ -30,13 +35,14 @@ export function App() {
   const dialog = useRef<HTMLDialogElement>(null);
 
   const onCloseDetails = () => {
-    window.history.replaceState(null, "", "#/");
-    setImageId(null);
+    const next = detail?.kind === "video" ? "#/videos" : "#/";
+    window.history.replaceState(null, "", next);
+    setHash(next);
   };
 
   useEffect(() => {
     const modal = dialog.current;
-    if (!modal || !imageId) return;
+    if (!modal || !detail) return;
     modal.scrollTop = 0;
     modal.showModal();
     const previousOverflow = document.body.style.overflow;
@@ -45,13 +51,10 @@ export function App() {
       modal.close();
       document.body.style.overflow = previousOverflow;
     };
-  }, [imageId]);
+  }, [detail?.kind, detail?.id]);
 
   useEffect(() => {
-    const onHashChange = () => {
-      setImageId(imageFromHash());
-      setIsVideoRoute(window.location.hash.startsWith("#/videos"));
-    };
+    const onHashChange = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
@@ -131,7 +134,9 @@ export function App() {
       <dialog
         ref={dialog}
         className="image-dialog"
-        aria-label="Image details"
+        aria-label={
+          detail?.kind === "video" ? "Video details" : "Image details"
+        }
         onCancel={(event) => {
           event.preventDefault();
           onCloseDetails();
@@ -141,8 +146,19 @@ export function App() {
         }}
       >
         <div className="modal-content">
-          {imageId && (
-            <Detail key={imageId} imageId={imageId} onClose={onCloseDetails} />
+          {detail?.kind === "image" && (
+            <Detail
+              key={detail.id}
+              imageId={detail.id}
+              onClose={onCloseDetails}
+            />
+          )}
+          {detail?.kind === "video" && (
+            <VideoDetail
+              key={detail.id}
+              videoId={detail.id}
+              onClose={onCloseDetails}
+            />
           )}
         </div>
       </dialog>

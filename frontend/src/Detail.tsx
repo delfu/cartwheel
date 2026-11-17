@@ -1,3 +1,4 @@
+import { peoplePageSize } from "./peoplePageSize";
 import { useEffect, useState } from "react";
 import { api, errorMessage, statusLabel } from "./api";
 import type { ImageRecord } from "./api";
@@ -14,12 +15,6 @@ const views: { key: View; label: string; shortcut: string }[] = [
   { key: "mask", label: "Mask", shortcut: "w" },
   { key: "isolated", label: "Cutout", shortcut: "e" },
 ];
-
-function peoplePageSize() {
-  if (window.innerHeight < 600) return 1;
-  if (window.innerWidth <= 760) return window.innerHeight < 740 ? 1 : 2;
-  return window.innerHeight < 800 ? 2 : 4;
-}
 
 export function Detail({
   imageId,

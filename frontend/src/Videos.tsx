@@ -1,30 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorMessage } from "./api";
 import type { VideoSummary } from "./api";
-import { VideoDetail } from "./VideoDetail";
-
-function videoFromHash() {
-  const match = /^#\/videos\/([^/]+)$/.exec(window.location.hash);
-  if (!match) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return null;
-  }
-}
-
 export function Videos() {
-  const [videoId, setVideoId] = useState(videoFromHash);
+  const [refresh, setRefresh] = useState(0);
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const onHashChange = () => setVideoId(videoFromHash());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
   useEffect(() => {
     const controller = new AbortController();
     setIsLoading(true);
@@ -38,9 +21,8 @@ export function Videos() {
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [videoId]);
+  }, [refresh]);
 
-  if (videoId) return <VideoDetail key={videoId} videoId={videoId} />;
   return (
     <section>
       <div className="page-heading">
@@ -71,6 +53,7 @@ export function Videos() {
             if (file.size > 100 * 1024 * 1024)
               throw new Error("Video exceeds the 100 MiB limit.");
             const video = await api.uploadVideo(file);
+            setRefresh((value) => value + 1);
             window.location.hash = `/videos/${video.id}`;
           } catch (error) {
             setError(errorMessage(error));
@@ -99,6 +82,7 @@ export function Videos() {
               className="image-card"
               key={video.id}
               href={`#/videos/${video.id}`}
+              aria-haspopup="dialog"
             >
               <video
                 className="video-thumbnail"
