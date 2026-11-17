@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, errorMessage } from "./api";
 import type { VideoRecord } from "./api";
 import { CompositeVideo } from "./CompositeVideo";
-import type { VideoView } from "./CompositeVideo";
+import type { VideoView } from "./videoRenderer";
 
 const views: { key: VideoView; label: string; shortcut: string }[] = [
   { key: "original", label: "Original", shortcut: "q" },
