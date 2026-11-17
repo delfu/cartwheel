@@ -215,14 +215,14 @@ export function VideoDetail({ videoId }: { videoId: string }) {
                 </button>
               </div>
               {!result.tracks.length && <p>No people detected.</p>}
-              {result.tracks.map((track) => (
+              {result.tracks.map((track, index) => (
                 <label className="video-track" key={track.track_id}>
                   <input
                     type="checkbox"
                     checked={selected.includes(track.track_id)}
                     onChange={() => onToggleTrack(track.track_id)}
                   />
-                  Person {track.track_id}
+                  Person {index + 1}
                 </label>
               ))}
               <p className="video-hint">
