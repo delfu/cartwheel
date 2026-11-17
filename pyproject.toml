@@ -1,0 +1,12 @@
+[project]
+name = "cartwheel"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = ["ultralytics>=8.3,<9", "pillow>=11,<13", "numpy>=2,<3"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
