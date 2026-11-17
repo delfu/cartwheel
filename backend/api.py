@@ -1,20 +1,28 @@
 """Image upload, gallery and job-status API. Workers run independently."""
 
 import os
+from io import BytesIO
 from pathlib import Path
 import shutil
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
+from typing import Annotated, Literal
 
+import numpy as np
 from fastapi import FastAPI, File, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from PIL import Image
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException
 from starlette.formparsers import MultiPartException
 
-from backend.ml.pipeline import load_image
+from backend.ml.pipeline import isolate, load_image
 from backend.store import Store
+
+
+class PersonSelection(BaseModel):
+    person_indices: list[Annotated[int, Field(strict=True, ge=1)]] = Field(max_length=300)
 
 
 class UploadLimit:
@@ -105,7 +113,8 @@ def create_app(root: Path | None = None) -> FastAPI:
                 try:
                     image = load_image(Path(temporary.name))
                 except (OSError, ValueError, Image.DecompressionBombError) as error:
-                    raise HTTPException(400, f"Invalid image: {error}") from error
+                    message = "Upload a valid PNG or JPEG image." if isinstance(error, OSError) else str(error)
+                    raise HTTPException(400, message) from error
                 destination.parent.mkdir(parents=True)
                 with destination.open("wb") as original:
                     image.save(original, format="PNG")
@@ -143,6 +152,26 @@ def create_app(root: Path | None = None) -> FastAPI:
     @app.get("/api/images/{image_id}/artifacts/{filename}")
     def get_artifact(image_id: str, filename: str):
         return FileResponse(store.artifact_path(image_id, filename), media_type="image/png")
+
+    @app.post("/api/images/{image_id}/cutout")
+    def create_cutout(image_id: str, selection: PersonSelection,
+                      view: Literal["mask", "isolated"] = "isolated"):
+        detail = store.get_image(image_id)
+        if detail["status"] != "ready":
+            raise HTTPException(409, "Wait for image processing to finish before selecting people")
+        people = {person["index"]: person for person in detail["result"]["people"]}
+        indices = selection.person_indices
+        if len(indices) != len(set(indices)) or not set(indices) <= people.keys():
+            raise HTTPException(400, "Select unique person indices detected in this image")
+        with Image.open(store.original_path(image_id)) as source:
+            union = np.zeros((source.height, source.width), dtype=bool)
+            for index in indices:
+                with Image.open(store.artifact_path(image_id, people[index]["mask"])) as mask:
+                    union |= np.array(mask) > 0
+            mask, isolated = isolate(source, [union])
+        buffer = BytesIO()
+        (mask if view == "mask" else isolated).save(buffer, format="PNG")
+        return Response(buffer.getvalue(), media_type="image/png", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/jobs/{job_id}")
     def get_job(job_id: str):

@@ -35,6 +35,7 @@ def test_rejects_invalid_image_and_request(tmp_path):
     response = client.post("/api/images", files={"file": ("image.png", b"garbage", "image/png")})
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "request_failed"
+    assert response.json()["error"]["message"] == "Upload a valid PNG or JPEG image."
     assert client.get("/api/images").json()["items"] == []
     assert client.get("/api/images?limit=0").status_code == 422
     assert client.get("/api/images?cursor=unknown").status_code == 400

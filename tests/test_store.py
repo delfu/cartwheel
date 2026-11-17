@@ -93,9 +93,14 @@ def test_gallery_pagination_has_no_duplicates_for_equal_timestamps(tmp_path, clo
     ids = {enqueue(store)["id"] for _ in range(3)}
     first = store.list_images(limit=2)
     second = store.list_images(limit=2, cursor=first["next_cursor"])
+    assert first["total"] == second["total"] == 3
     assert len(first["items"]) == 2
     assert second["next_cursor"] is None
     assert {image["id"] for image in first["items"] + second["items"]} == ids
+
+
+def test_empty_gallery_includes_total(tmp_path):
+    assert Store(tmp_path).list_images() == {"items": [], "next_cursor": None, "total": 0}
 
 
 def test_only_successfully_published_artifacts_are_readable(tmp_path):

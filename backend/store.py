@@ -110,6 +110,8 @@ class Store:
 
     def list_images(self, limit: int = 20, cursor: str | None = None) -> dict:
         with closing(self._connect()) as db:
+            db.execute("BEGIN")
+            total = db.execute("SELECT COUNT(*) FROM images").fetchone()[0]
             params, condition = [], ""
             if cursor:
                 previous = db.execute("SELECT created_at FROM images WHERE id=?", (cursor,)).fetchone()
@@ -121,12 +123,12 @@ class Store:
                               (*params, limit + 1)).fetchall()
             page = rows[:limit]
             if not page:
-                return {"items": [], "next_cursor": None}
+                return {"items": [], "next_cursor": None, "total": total}
             placeholders = ",".join("?" for _ in page)
             jobs = {row["id"]: self._job(row) for row in db.execute(
                 f"SELECT * FROM jobs WHERE id IN ({placeholders})", [row["latest_job_id"] for row in page])}
         return {"items": [self._image(row, jobs[row["latest_job_id"]]) for row in page],
-                "next_cursor": page[-1]["id"] if len(rows) > limit else None}
+                "next_cursor": page[-1]["id"] if len(rows) > limit else None, "total": total}
 
     def claim(self, lease_seconds: float = 60) -> Claim | None:
         if lease_seconds <= 0:
